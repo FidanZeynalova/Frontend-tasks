@@ -1,4 +1,5 @@
 import React from 'react'
+import Cards from './Cards'
 
 function Main() {
     return (
@@ -17,32 +18,7 @@ function Main() {
             </div>
 
             {/* Cards Section */}
-            <div className='w-[1108px] flex pb-4 justify-center gap-10'>
-                {/* Card 1 */}
-               <div className='flex flex-col gap-3'>
-                    <div className='font-bold text-xs text-[#667085]'>To Do</div>
-
-                    <div className='bg-white w-[348px] h-[255px] flex flex-col gap-5 p-5 rounded-lg bg-white'>
-
-                    </div>
-               </div>
-                {/* Card 2 */}
-                 <div className='flex flex-col gap-3'>
-                    <div className='font-bold text-xs text-[#667085]'>Doing</div>
-
-                    <div className='bg-white w-[348px] h-[255px] flex flex-col gap-5 p-5 rounded-lg bg-white'>
-
-                    </div>
-               </div>
-                {/* Card 3 */}
-                 <div className='flex flex-col gap-3'>
-                    <div className='font-bold text-xs text-[#667085]'>Done</div>
-
-                    <div className='bg-white w-[348px] h-[255px] flex flex-col gap-5 p-5 rounded-lg bg-white'>
-
-                    </div>
-               </div>
-            </div>
+           <Cards />
             
 
 
