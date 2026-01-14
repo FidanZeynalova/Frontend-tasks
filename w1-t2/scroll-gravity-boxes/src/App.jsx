@@ -1,177 +1,131 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+// Small Boxes
+const generateInitialBoxes = (num) => {
+  return Array.from({ length: num }, (_, i) => ({
+    id: `box-${Math.random().toString(36).substr(2, 9)}`,
+    x: 15 + Math.random() * 70,
+    y: 10 + Math.random() * 40,
+    rotation: Math.random() * 360,
+    velocityY: 0,
+    velocityX: (Math.random() - 0.5) * 5,
+    rotationVelocity: 0,
+    size: Math.floor(Math.random() * 25) + 45,
+  }));
+};
+
 const ScrollGravityBoxes = () => {
-  const [boxes, setBoxes] = useState([]);
-  const scrollRef = useRef({ y: 0, velocity: 0, lastTime: Date.now() });
-  const animationRef = useRef(null);
+  const [boxes, setBoxes] = useState(() => generateInitialBoxes(12));
   const containerRef = useRef(null);
+  const requestRef = useRef();
+
+
+  const scrollData = useRef({
+    lastY: typeof window !== 'undefined' ? window.scrollY : 0,
+    currentVelocity: 0,
+  });
+
 
   useEffect(() => {
-    const initialBoxes = Array.from({ length: 15 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 80 + 10,
-      y: Math.random() * 60 + 10,
-      rotation: Math.random() * 360,
-      velocityY: 0,
-      velocityX: 0,
-      rotationVelocity: 0,
-      size: Math.random() * 20 + 30,
-    }));
-    setBoxes(initialBoxes);
-  }, []);
-
-  // Handle scroll events
-  useEffect(() => {
-    let ticking = false;
-
     const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const now = Date.now();
-          const currentScrollY = window.scrollY;
-          const deltaTime = (now - scrollRef.current.lastTime) / 1000;
-          const deltaScroll = currentScrollY - scrollRef.current.y;
+      const currentY = window.scrollY;
+      const diff = currentY - scrollData.current.lastY;
 
-          const velocity = deltaTime > 0 ? deltaScroll / deltaTime : 0;
 
-          scrollRef.current = {
-            y: currentScrollY,
-            velocity: velocity * 0.4,
-            lastTime: now,
-          };
-
-          ticking = false;
-        });
-
-        ticking = true;
-      }
+      scrollData.current.currentVelocity = diff * 0.5;
+      scrollData.current.lastY = currentY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Physics animation loop
-  useEffect(() => {
-    const GRAVITY = 800;
-    const FRICTION = 0.98;
-    const ROTATION_FRICTION = 0.95;
-    const BOUNCE_DAMPING = 0.6;
-    const SCROLL_INFLUENCE = 0.35;
+  const animate = () => {
+    const gravity = 0.15;
+    const friction = 0.9;
+    const bounce = 0.55;
 
-    const animate = () => {
-      const deltaTime = 1 / 60;
-      const scrollVelocity = scrollRef.current.velocity;
+    scrollData.current.currentVelocity *= 0.92;
+    const forceFromScroll = scrollData.current.currentVelocity;
 
-      setBoxes(prevBoxes =>
-        prevBoxes.map(box => {
-          let { x, y, velocityY, velocityX, rotation, rotationVelocity, size } = box;
+    setBoxes(prevBoxes => prevBoxes.map(box => {
+      let { x, y, velocityY, velocityX, rotation, rotationVelocity, size } = box;
 
-          velocityY += scrollVelocity * SCROLL_INFLUENCE;
-          velocityY += GRAVITY * deltaTime;
+      // Gravity and scroll force
+      velocityY += gravity + forceFromScroll;
 
-          velocityY *= FRICTION;
-          velocityX *= FRICTION;
-          rotationVelocity *= ROTATION_FRICTION;
+      // friction(Sürtünmə)
+      velocityY *= friction;
+      velocityX *= friction;
+      rotationVelocity *= friction;
 
-          y += velocityY * deltaTime;
-          x += velocityX * deltaTime;
-          rotation += rotationVelocity * deltaTime;
+      // new positions
+      y += velocityY;
+      x += velocityX;
+      rotation += rotationVelocity;
 
-          const containerHeight = containerRef.current?.clientHeight || 600;
-          const containerWidth = containerRef.current?.clientWidth || 800;
+      // container size
+      const ch = containerRef.current?.clientHeight || 500;
+      const cw = containerRef.current?.clientWidth || 500;
 
-          const maxY = 100 - (size / containerHeight * 100);
-          const maxX = 100 - (size / containerWidth * 100);
+      const sizePercentY = (size / ch) * 100;
+      const sizePercentX = (size / cw) * 100;
 
-          if (y > maxY) {
-            y = maxY;
-            velocityY = -velocityY * BOUNCE_DAMPING;
-            rotationVelocity = velocityX * 3;
-          }
-
-          if (y < 0) {
-            y = 0;
-            velocityY = -velocityY * BOUNCE_DAMPING;
-          }
-
-          if (x > maxX) {
-            x = maxX;
-            velocityX = -velocityX * BOUNCE_DAMPING;
-            rotationVelocity = -velocityY * 2;
-          }
-
-          if (x < 0) {
-            x = 0;
-            velocityX = -velocityX * BOUNCE_DAMPING;
-            rotationVelocity = velocityY * 2;
-          }
-
-          return {
-            ...box,
-            x,
-            y,
-            velocityY,
-            velocityX,
-            rotation,
-            rotationVelocity,
-          };
-        })
-      );
-
-      animationRef.current = requestAnimationFrame(animate);
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+      if (y > (100 - sizePercentY / 2)) {
+        y = 100 - sizePercentY / 2;
+        velocityY *= -bounce;
+        rotationVelocity = velocityX * 2.5;
       }
-    };
+
+      if (y < (sizePercentY / 2)) {
+        y = sizePercentY / 2;
+        velocityY *= -bounce;
+      }
+
+      if (x > (100 - sizePercentX / 2) || x < (sizePercentX / 2)) {
+        velocityX *= -bounce;
+        x = x < 50 ? sizePercentX / 2 : 100 - sizePercentX / 2;
+      }
+
+      return { ...box, x, y, velocityY, velocityX, rotation, rotationVelocity };
+    }));
+
+    requestRef.current = requestAnimationFrame(animate);
+  };
+
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(requestRef.current);
   }, []);
 
   return (
-    <div className=" bg-gradient-to-br from-slate-900 to-slate-900 p-8">
-      <div className="max-w-xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12 pt-8">
-          <h1 className="text-5xl font-bold text-white mb-4">Scroll Gravity Boxes</h1>
-        </div>
+    <div className="min-h-[200vh] bg-stone-900 py-20 px-4">
+      <div className="max-w-2xl mx-auto text-center">
+        <h1 className="text-4xl font-black text-white mb-10 tracking-tight">Scroll Gravity Boxes</h1>
 
-        {/* Main Container Box */}
         <div
           ref={containerRef}
-          className="relative bg-slate-800/40 rounded-3xl border-4 border-slate-700 overflow-hidden shadow-2xl mx-auto"
-          style={{
-            height: '500px',
-            maxWidth: '500px'
-          }}
+          className="relative bg-emerald-500 rounded-2xl border-4 border-stone-800 shadow-2xl overflow-hidden mx-auto"
+          style={{ height: '550px', width: '100%', maxWidth: '500px' }}
         >
-          {/* Small boxes inside */}
           {boxes.map(box => (
             <div
               key={box.id}
-              className="absolute"
+              className="absolute select-none pointer-events-none"
               style={{
                 left: `${box.x}%`,
                 top: `${box.y}%`,
                 width: `${box.size}px`,
                 height: `${box.size}px`,
                 transform: `translate(-50%, -50%) rotate(${box.rotation}deg)`,
-                willChange: 'transform',
               }}
             >
-              <div
-                className="w-full h-full bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600 rounded-lg shadow-lg"
-                style={{
-                  boxShadow: `0 ${Math.abs(box.velocityY) / 40}px ${Math.abs(box.velocityY) / 15}px rgba(16, 185, 129, 0.4)`,
-                }}
-              />
+              <div className="w-full h-full bg-orange-700 border-2 border-orange-950 rounded-lg shadow-inner" />
             </div>
           ))}
         </div>
 
+        <p className="mt-8 text-stone-500 italic">Try scrolling fast up and down...</p>
       </div>
     </div>
   );
